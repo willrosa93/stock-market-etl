@@ -17,6 +17,11 @@ x-airflow-common: &airflow-common
     WAREHOUSE_DB_USER: warehouse
     WAREHOUSE_DB_PASSWORD: warehouse
     WAREHOUSE_DB_NAME: stock_warehouse
+    SMTP_HOST: smtp.gmail.com
+    SMTP_PORT: '587'
+    SMTP_USER: ${SMTP_USER:-}
+    SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+    EMAIL_TO: willianrosa993@gmail.com
   volumes:
     - ./dags:/opt/airflow/dags
     - ./plugins:/opt/airflow/plugins
