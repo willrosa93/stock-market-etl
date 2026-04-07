@@ -71,6 +71,9 @@ def extract_stock_data(tickers: list[str], **context) -> str:
         "companies": company_info,
     }
 
+    if not all_data:
+        raise ValueError("No data extracted for any ticker. Check network connectivity.")
+
     output_path = DATA_DIR / "raw_stock_data.json"
     output_path.parent.mkdir(parents=True, exist_ok=True)
 

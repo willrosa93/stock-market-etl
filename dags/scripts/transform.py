@@ -80,11 +80,12 @@ def transform_stock_data(**context) -> str:
         total_volume=("volume", "sum"),
     ).reset_index()
 
-    # Best and worst ticker per day
-    best = df_prices.loc[df_prices.groupby("date")["daily_return"].idxmax()][["date", "ticker", "daily_return"]]
+    # Best and worst ticker per day (drop NaN returns first)
+    valid = df_prices.dropna(subset=["daily_return"])
+    best = valid.loc[valid.groupby("date")["daily_return"].idxmax()][["date", "ticker", "daily_return"]]
     best.columns = ["date", "best_ticker", "best_return"]
 
-    worst = df_prices.loc[df_prices.groupby("date")["daily_return"].idxmin()][["date", "ticker", "daily_return"]]
+    worst = valid.loc[valid.groupby("date")["daily_return"].idxmin()][["date", "ticker", "daily_return"]]
     worst.columns = ["date", "worst_ticker", "worst_return"]
 
     daily = daily.merge(best, on="date").merge(worst, on="date")

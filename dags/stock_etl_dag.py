@@ -16,16 +16,16 @@ from scripts.load import load_dim_company, load_fact_stock_price, load_fact_dail
 
 
 TICKERS = [
-    "PETR4.SA",  # Petrobras
-    "VALE3.SA",  # Vale
-    "ITUB4.SA",  # Itaú Unibanco
-    "BBDC4.SA",  # Bradesco
-    "ABEV3.SA",  # Ambev
-    "WEGE3.SA",  # WEG
-    "RENT3.SA",  # Localiza
-    "BBAS3.SA",  # Banco do Brasil
-    "SUZB3.SA",  # Suzano
-    "GGBR4.SA",  # Gerdau
+    "AAPL",   # Apple
+    "MSFT",   # Microsoft
+    "GOOGL",  # Alphabet
+    "AMZN",   # Amazon
+    "NVDA",   # NVIDIA
+    "META",   # Meta
+    "TSLA",   # Tesla
+    "JPM",    # JPMorgan
+    "V",      # Visa
+    "WMT",    # Walmart
 ]
 
 default_args = {
