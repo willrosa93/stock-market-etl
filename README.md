@@ -4,25 +4,39 @@ End-to-end data pipeline that extracts daily US stock market data, loads into a 
 
 ## Architecture
 
-```
-                            ┌─────────────────────────────────────────────┐
-                            │            Apache Airflow                    │
-                            │                                             │
-  Yahoo Finance API ──────► │  DAG 1: ETL                                 │
-                            │  Extract → Transform → Load                 │
-                            │       │                                     │
-                            │       ▼                                     │
-                            │  DAG 2: Analytics                           │
-                            │  Moving Avg ┐                               │
-                            │  Volatility ├→ Alerts → Charts → Email     │
-                            │  Returns   ┘                               │
-                            └──────────────────┬──────────────────────────┘
-                                               │
-                                               ▼
-                                    ┌─────────────────────┐
-                                    │  PostgreSQL 15       │
-                                    │  Star Schema + DW    │
-                                    └─────────────────────┘
+```mermaid
+flowchart LR
+    subgraph Ingestion Layer
+        A[Yahoo Finance API]
+    end
+
+    subgraph Orchestration Layer
+        B[Apache Airflow]
+    end
+
+    subgraph Transformation Layer
+        C[pandas + NumPy]
+    end
+
+    subgraph Data Warehouse
+        D[(PostgreSQL 15\nStar Schema)]
+    end
+
+    subgraph Analytics Layer
+        E[Moving Averages\nVolatility\nReturns]
+        F[Alert Engine]
+    end
+
+    subgraph Delivery Layer
+        G[Daily Email Report\nCharts + Signals]
+    end
+
+    A -->|yfinance| B
+    B -->|Extract & Schedule| C
+    C -->|Clean & Enrich| D
+    D --> E
+    E --> F
+    F -->|SMTP| G
 ```
 
 ### Airflow DAG — Analytics Pipeline
@@ -31,16 +45,16 @@ End-to-end data pipeline that extracts daily US stock market data, loads into a 
 
 ## Tech Stack
 
-| Component        | Technology                          |
-|------------------|-------------------------------------|
-| Orchestration    | Apache Airflow 2.8                  |
-| Extraction       | yfinance (Yahoo Finance API)        |
-| Transformation   | pandas                              |
-| Data Warehouse   | PostgreSQL 15 (Star Schema)         |
-| Analytics        | pandas, NumPy                       |
-| Visualization    | matplotlib                          |
-| Email Reports    | SMTP (Gmail) with embedded charts   |
-| Infrastructure   | Docker / Docker Compose             |
+| Layer              | Technology                          |
+|--------------------|-------------------------------------|
+| Orchestration      | Apache Airflow 2.8                  |
+| Ingestion          | yfinance (Yahoo Finance API)        |
+| Transformation     | pandas, NumPy                       |
+| Data Warehouse     | PostgreSQL 15 (Star Schema)         |
+| Analytics          | pandas, NumPy (technical indicators)|
+| Visualization      | matplotlib                          |
+| Delivery           | SMTP (Gmail) with embedded charts   |
+| Infrastructure     | Docker / Docker Compose             |
 
 ## Data Model (Star Schema)
 
