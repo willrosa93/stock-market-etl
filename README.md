@@ -1,42 +1,33 @@
 # Stock Market ETL & Analytics Pipeline
 
-End-to-end data pipeline that extracts daily US stock market data, loads into a PostgreSQL data warehouse (star schema), calculates technical indicators, and sends automated email reports with charts and alerts.
+End-to-end data pipeline for stock market analysis using **Apache Airflow**. The pipeline ingests market data from Yahoo Finance, processes technical indicators (SMA, EMA, volatility), stores it in a **PostgreSQL data warehouse** modeled as a star schema, and delivers automated daily insights via email reports with charts and alerts.
+
+`Apache Airflow` `Python` `PostgreSQL` `Docker` `pandas` `NumPy` `matplotlib`
+
+---
 
 ## Architecture
 
 ```mermaid
-flowchart LR
-    subgraph Ingestion Layer
-        A[Yahoo Finance API]
-    end
+flowchart TD
+    A["Data Ingestion\n─────────────\nYahoo Finance API\n(yfinance)"] -->|Raw market data| B
 
-    subgraph Orchestration Layer
-        B[Apache Airflow]
-    end
+    B["Orchestration\n─────────────\nApache Airflow\n(2 DAGs, scheduled)"] -->|Triggers tasks| C
 
-    subgraph Transformation Layer
-        C[pandas + NumPy]
-    end
+    C["Data Transformation\n─────────────\npandas + NumPy\n(clean, enrich, indicators)"] -->|Structured data| D
 
-    subgraph Data Warehouse
-        D[(PostgreSQL 15\nStar Schema)]
-    end
+    D[("Data Warehouse\n─────────────\nPostgreSQL 15\n(Star Schema)")] -->|Query results| E
 
-    subgraph Analytics Layer
-        E[Moving Averages\nVolatility\nReturns]
-        F[Alert Engine]
-    end
+    E["Analytics Engine\n─────────────\nMoving Averages · Volatility\nReturns · Alert Detection"] -->|Insights + alerts| F
 
-    subgraph Delivery Layer
-        G[Daily Email Report\nCharts + Signals]
-    end
+    F["Delivery Layer\n─────────────\nDaily Email Report\n(Charts + Signals via SMTP)"]
 
-    A -->|yfinance| B
-    B -->|Extract & Schedule| C
-    C -->|Clean & Enrich| D
-    D --> E
-    E --> F
-    F -->|SMTP| G
+    style A fill:#4ECDC4,stroke:#2C3E50,color:#fff
+    style B fill:#017CEE,stroke:#2C3E50,color:#fff
+    style C fill:#F39C12,stroke:#2C3E50,color:#fff
+    style D fill:#4169E1,stroke:#2C3E50,color:#fff
+    style E fill:#9B59B6,stroke:#2C3E50,color:#fff
+    style F fill:#E74C3C,stroke:#2C3E50,color:#fff
 ```
 
 ### Airflow DAG — Analytics Pipeline
@@ -48,13 +39,29 @@ flowchart LR
 | Layer              | Technology                          |
 |--------------------|-------------------------------------|
 | Orchestration      | Apache Airflow 2.8                  |
-| Ingestion          | yfinance (Yahoo Finance API)        |
-| Transformation     | pandas, NumPy                       |
+| Data Ingestion     | yfinance (Yahoo Finance API)        |
+| Data Transformation| pandas, NumPy                       |
 | Data Warehouse     | PostgreSQL 15 (Star Schema)         |
 | Analytics          | pandas, NumPy (technical indicators)|
 | Visualization      | matplotlib                          |
 | Delivery           | SMTP (Gmail) with embedded charts   |
 | Infrastructure     | Docker / Docker Compose             |
+
+## Pipeline Flow
+
+### DAG 1: `stock_market_etl` — runs weekdays at 20:00
+
+```
+Data Ingestion → Data Transformation → Load Dimensions → Load Facts → Load Summaries
+```
+
+### DAG 2: `stock_market_analytics` — runs weekdays at 20:30
+
+```
+┌─ Moving Averages (SMA-9, SMA-21, EMA-9) ─┐
+├─ Volatility Analysis (30d, 60d) ──────────┼─► Alert Engine → Chart Generation → Email Delivery
+└─ Accumulated Returns (7d, 30d, 90d) ──────┘
+```
 
 ## Data Model (Star Schema)
 
@@ -91,38 +98,23 @@ flowchart LR
 └────────────────────────┘
 ```
 
-### Data Warehouse Tables
-
 <img src="docs/bd1.png" alt="Star Schema Tables" width="500"/>
 
 <img src="docs/bd2.png" alt="dim_company data" width="800"/>
 
-## Features
-
-- **Automated ETL**: Daily extraction of stock prices from Yahoo Finance
-- **Star Schema DW**: Proper dimensional modeling with fact and dimension tables
-- **Technical Indicators**: SMA-9, SMA-21, EMA-9 with BUY/SELL/HOLD signals
-- **Volatility Analysis**: 30-day and 60-day volatility, volume anomaly detection
-- **Accumulated Returns**: 7-day, 30-day, and 90-day performance tracking
-- **Smart Alerts**: Automatic detection of big drops (>3%), big gains, abnormal volume
-- **Daily Email Reports**: HTML emails with embedded charts sent via Gmail
-- **Fully Containerized**: One command to start the entire pipeline
-
 ## Output Examples
 
-### Daily Email Report
-
-The pipeline sends automated daily reports via email with performance analysis, returns, volume, and trading signals.
+The pipeline delivers automated daily reports via email with real market data:
 
 **Performance Overview & Alerts:**
 
 <img src="docs/email1.png" alt="Email Report - Performance" width="600"/>
 
-**Daily Returns (gains in green, losses in red):**
+**Daily Returns — gains (green) vs losses (red):**
 
 <img src="docs/email2.png" alt="Email Report - Daily Returns" width="600"/>
 
-**Trading Volume & SMA Signals:**
+**Trading Volume & SMA Signals (BUY/SELL/HOLD):**
 
 <img src="docs/email3.png" alt="Email Report - Volume and Signals" width="600"/>
 
@@ -135,6 +127,72 @@ The pipeline sends automated daily reports via email with performance analysis, 
 | SIGNAL_BUY     | SMA-9 crosses above SMA-21   | INFO     |
 | SIGNAL_SELL    | SMA-9 crosses below SMA-21   | INFO     |
 | HIGH_VOLUME    | Volume > 1.5x 30-day average | WARNING  |
+
+## Getting Started
+
+### Prerequisites
+
+- Docker and Docker Compose
+- Gmail account with App Password (for email reports)
+
+### Quick Start
+
+```bash
+# 1. Clone
+git clone https://github.com/willrosa93/stock-market-etl.git
+cd stock-market-etl
+
+# 2. Configure email (optional)
+cp .env.example .env
+# Edit .env with your Gmail App Password
+
+# 3. Start everything
+docker-compose up -d
+
+# 4. Initialize Airflow
+docker-compose run --rm airflow-init
+docker-compose restart airflow-webserver airflow-scheduler
+```
+
+**Airflow UI:** http://localhost:8081 (admin / admin)
+
+Enable both DAGs and trigger manually, or wait for the scheduled runs (weekdays at 20:00 and 20:30).
+
+### Query the Data Warehouse
+
+```bash
+psql -h localhost -p 5434 -U warehouse -d stock_warehouse
+```
+
+```sql
+-- Latest prices with trading signals
+SELECT c.ticker, c.name, d.full_date,
+       p.close_price, p.daily_return,
+       ma.sma_9, ma.sma_21, ma.signal
+FROM fact_stock_price p
+JOIN dim_company c ON c.company_id = p.company_id
+JOIN dim_date d ON d.date_id = p.date_id
+LEFT JOIN analytics_moving_averages ma
+  ON ma.company_id = p.company_id AND ma.date_id = p.date_id
+ORDER BY d.full_date DESC, c.ticker
+LIMIT 20;
+
+-- Performance ranking (latest day)
+SELECT c.ticker, c.name,
+       r.return_7d * 100 AS "7d %",
+       r.return_30d * 100 AS "30d %",
+       v.volatility_30d
+FROM analytics_returns r
+JOIN dim_company c ON c.company_id = r.company_id
+JOIN dim_date d ON d.date_id = r.date_id
+LEFT JOIN analytics_volatility v
+  ON v.company_id = r.company_id AND v.date_id = r.date_id
+WHERE d.full_date = (
+  SELECT MAX(full_date) FROM dim_date dd
+  JOIN analytics_returns ar ON ar.date_id = dd.date_id
+)
+ORDER BY r.return_7d DESC;
+```
 
 ## Stocks Tracked
 
@@ -151,108 +209,19 @@ The pipeline sends automated daily reports via email with performance analysis, 
 | V      | Visa              | Financial Services     |
 | WMT    | Walmart           | Consumer Defensive     |
 
-## Getting Started
-
-### Prerequisites
-
-- Docker and Docker Compose installed
-- Gmail account with App Password (for email reports)
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/willrosa93/stock-market-etl.git
-cd stock-market-etl
-```
-
-### 2. Configure email (optional)
-
-Create a `.env` file:
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env` and add your Gmail App Password:
-
-```
-SMTP_USER=your_email@gmail.com
-SMTP_PASSWORD=your_app_password
-```
-
-> To generate a Gmail App Password: [Google Account > Security > 2FA > App Passwords](https://myaccount.google.com/apppasswords)
-
-### 3. Start the pipeline
-
-```bash
-docker-compose up -d
-```
-
-### 4. Initialize Airflow
-
-```bash
-docker-compose run --rm airflow-init
-docker-compose restart airflow-webserver airflow-scheduler
-```
-
-### 5. Access Airflow UI
-
-- URL: http://localhost:8081
-- Username: `admin`
-- Password: `admin`
-
-### 6. Run the pipeline
-
-1. Enable the `stock_market_etl` DAG and trigger it manually
-2. Enable the `stock_market_analytics` DAG and trigger it after ETL completes
-3. Both DAGs run automatically on weekdays (ETL at 8pm, Analytics at 8:30pm)
-
-### 7. Query the data warehouse
-
-```bash
-psql -h localhost -p 5434 -U warehouse -d stock_warehouse
-```
-
-```sql
--- Latest prices with signals
-SELECT
-    c.ticker, c.name, d.full_date,
-    p.close_price, p.daily_return,
-    ma.sma_9, ma.sma_21, ma.signal
-FROM fact_stock_price p
-JOIN dim_company c ON c.company_id = p.company_id
-JOIN dim_date d ON d.date_id = p.date_id
-LEFT JOIN analytics_moving_averages ma ON ma.company_id = p.company_id AND ma.date_id = p.date_id
-ORDER BY d.full_date DESC, c.ticker
-LIMIT 20;
-
--- Performance ranking
-SELECT
-    c.ticker, c.name,
-    r.return_7d * 100 AS "7d %",
-    r.return_30d * 100 AS "30d %",
-    v.volatility_30d
-FROM analytics_returns r
-JOIN dim_company c ON c.company_id = r.company_id
-JOIN dim_date d ON d.date_id = r.date_id
-LEFT JOIN analytics_volatility v ON v.company_id = r.company_id AND v.date_id = r.date_id
-WHERE d.full_date = (SELECT MAX(full_date) FROM dim_date dd JOIN analytics_returns ar ON ar.date_id = dd.date_id)
-ORDER BY r.return_7d DESC;
-```
-
 ## Project Structure
 
 ```
 .
 ├── dags/
-│   ├── stock_etl_dag.py            # ETL pipeline DAG
+│   ├── stock_etl_dag.py            # Data ingestion & loading DAG
 │   ├── stock_analytics_dag.py      # Analytics & reporting DAG
 │   └── scripts/
-│       ├── extract.py              # Yahoo Finance data extraction
-│       ├── transform.py            # Data cleaning & transformation
-│       ├── load.py                 # PostgreSQL loading (upserts)
+│       ├── extract.py              # Data ingestion (Yahoo Finance)
+│       ├── transform.py            # Data transformation & cleaning
+│       ├── load.py                 # Data warehouse loading (upserts)
 │       ├── analytics.py            # Technical indicators & alerts
-│       └── report.py               # Chart generation & email sending
+│       └── report.py               # Chart generation & email delivery
 ├── sql/
 │   ├── create_tables.sql           # Star schema DDL
 │   └── create_analytics_tables.sql # Analytics tables DDL
@@ -264,18 +233,13 @@ ORDER BY r.return_7d DESC;
 └── README.md
 ```
 
-## DAG Pipelines
+## Features
 
-### DAG 1: `stock_market_etl` (weekdays at 20:00)
-
-```
-extract_stock_data → transform_stock_data → load_dim_company → load_fact_stock_price → load_fact_daily_summary
-```
-
-### DAG 2: `stock_market_analytics` (weekdays at 20:30)
-
-```
-┌─ calculate_moving_averages ─┐
-├─ calculate_volatility ──────┼─► generate_alerts → generate_charts → send_email_report
-└─ calculate_returns ─────────┘
-```
+- **Automated Data Ingestion**: Daily extraction of 10 major US stocks from Yahoo Finance
+- **Star Schema Data Warehouse**: Dimensional modeling with fact and dimension tables
+- **Technical Indicators**: SMA-9, SMA-21, EMA-9 with BUY/SELL/HOLD signals
+- **Volatility Analysis**: 30-day and 60-day volatility with volume anomaly detection
+- **Performance Tracking**: 7-day, 30-day, and 90-day accumulated returns
+- **Smart Alert Engine**: Automatic detection of big drops (>3%), big gains, abnormal volume
+- **Automated Reporting**: HTML email reports with embedded charts via Gmail SMTP
+- **Fully Containerized**: Single `docker-compose up` to start the entire pipeline
