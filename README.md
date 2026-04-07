@@ -25,6 +25,23 @@ End-to-end data pipeline that extracts daily US stock market data, loads into a 
                                     └─────────────────────┘
 ```
 
+### Airflow DAG — Analytics Pipeline
+
+<img src="docs/graph.png" alt="Airflow DAG Graph View" width="800"/>
+
+## Tech Stack
+
+| Component        | Technology                          |
+|------------------|-------------------------------------|
+| Orchestration    | Apache Airflow 2.8                  |
+| Extraction       | yfinance (Yahoo Finance API)        |
+| Transformation   | pandas                              |
+| Data Warehouse   | PostgreSQL 15 (Star Schema)         |
+| Analytics        | pandas, NumPy                       |
+| Visualization    | matplotlib                          |
+| Email Reports    | SMTP (Gmail) with embedded charts   |
+| Infrastructure   | Docker / Docker Compose             |
+
 ## Data Model (Star Schema)
 
 ```
@@ -60,6 +77,51 @@ End-to-end data pipeline that extracts daily US stock market data, loads into a 
 └────────────────────────┘
 ```
 
+### Data Warehouse Tables
+
+<img src="docs/bd1.png" alt="Star Schema Tables" width="500"/>
+
+<img src="docs/bd2.png" alt="dim_company data" width="800"/>
+
+## Features
+
+- **Automated ETL**: Daily extraction of stock prices from Yahoo Finance
+- **Star Schema DW**: Proper dimensional modeling with fact and dimension tables
+- **Technical Indicators**: SMA-9, SMA-21, EMA-9 with BUY/SELL/HOLD signals
+- **Volatility Analysis**: 30-day and 60-day volatility, volume anomaly detection
+- **Accumulated Returns**: 7-day, 30-day, and 90-day performance tracking
+- **Smart Alerts**: Automatic detection of big drops (>3%), big gains, abnormal volume
+- **Daily Email Reports**: HTML emails with embedded charts sent via Gmail
+- **Fully Containerized**: One command to start the entire pipeline
+
+## Output Examples
+
+### Daily Email Report
+
+The pipeline sends automated daily reports via email with performance analysis, returns, volume, and trading signals.
+
+**Performance Overview & Alerts:**
+
+<img src="docs/email1.png" alt="Email Report - Performance" width="600"/>
+
+**Daily Returns (gains in green, losses in red):**
+
+<img src="docs/email2.png" alt="Email Report - Daily Returns" width="600"/>
+
+**Trading Volume & SMA Signals:**
+
+<img src="docs/email3.png" alt="Email Report - Volume and Signals" width="600"/>
+
+### Alert Types
+
+| Alert          | Trigger                      | Severity |
+|----------------|------------------------------|----------|
+| BIG_DROP       | Daily return < -3%           | WARNING / CRITICAL (< -5%) |
+| BIG_GAIN       | Daily return > +3%           | INFO     |
+| SIGNAL_BUY     | SMA-9 crosses above SMA-21   | INFO     |
+| SIGNAL_SELL    | SMA-9 crosses below SMA-21   | INFO     |
+| HIGH_VOLUME    | Volume > 1.5x 30-day average | WARNING  |
+
 ## Stocks Tracked
 
 | Ticker | Company           | Sector                 |
@@ -74,30 +136,6 @@ End-to-end data pipeline that extracts daily US stock market data, loads into a 
 | JPM    | JPMorgan Chase    | Financial Services     |
 | V      | Visa              | Financial Services     |
 | WMT    | Walmart           | Consumer Defensive     |
-
-## Tech Stack
-
-| Component        | Technology                          |
-|------------------|-------------------------------------|
-| Orchestration    | Apache Airflow 2.8                  |
-| Extraction       | yfinance (Yahoo Finance API)        |
-| Transformation   | pandas                              |
-| Data Warehouse   | PostgreSQL 15 (Star Schema)         |
-| Analytics        | pandas, NumPy                       |
-| Visualization    | matplotlib                          |
-| Email Reports    | SMTP (Gmail) with embedded charts   |
-| Infrastructure   | Docker / Docker Compose             |
-
-## Features
-
-- **Automated ETL**: Daily extraction of stock prices from Yahoo Finance
-- **Star Schema DW**: Proper dimensional modeling with fact and dimension tables
-- **Technical Indicators**: SMA-9, SMA-21, EMA-9 with BUY/SELL/HOLD signals
-- **Volatility Analysis**: 30-day and 60-day volatility, volume anomaly detection
-- **Accumulated Returns**: 7-day, 30-day, and 90-day performance tracking
-- **Smart Alerts**: Automatic detection of big drops (>3%), big gains, abnormal volume
-- **Daily Email Reports**: HTML emails with embedded charts sent via Gmail
-- **Fully Containerized**: One command to start the entire pipeline
 
 ## Getting Started
 
@@ -174,14 +212,7 @@ LEFT JOIN analytics_moving_averages ma ON ma.company_id = p.company_id AND ma.da
 ORDER BY d.full_date DESC, c.ticker
 LIMIT 20;
 
--- Daily alerts
-SELECT
-    d.full_date, a.severity, a.alert_type, a.message
-FROM analytics_alerts a
-JOIN dim_date d ON d.date_id = a.date_id
-ORDER BY d.full_date DESC, a.severity;
-
--- Performance ranking (last available day)
+-- Performance ranking
 SELECT
     c.ticker, c.name,
     r.return_7d * 100 AS "7d %",
@@ -211,8 +242,7 @@ ORDER BY r.return_7d DESC;
 ├── sql/
 │   ├── create_tables.sql           # Star schema DDL
 │   └── create_analytics_tables.sql # Analytics tables DDL
-├── data/                           # Generated data files (gitignored)
-├── logs/                           # Airflow logs (gitignored)
+├── docs/                           # Screenshots and documentation
 ├── docker-compose.yaml
 ├── Dockerfile
 ├── requirements.txt
@@ -235,22 +265,3 @@ extract_stock_data → transform_stock_data → load_dim_company → load_fact_s
 ├─ calculate_volatility ──────┼─► generate_alerts → generate_charts → send_email_report
 └─ calculate_returns ─────────┘
 ```
-
-## Email Report Preview
-
-The daily email includes:
-- **Alerts**: Big drops/gains, abnormal volume, BUY/SELL signals
-- **Performance chart**: Normalized price evolution of all stocks
-- **Daily returns**: Horizontal bar chart with gains (green) and losses (red)
-- **Volume chart**: Trading volume comparison across stocks
-- **Signals overview**: Current BUY/SELL/HOLD signal for each stock
-
-## Alert Types
-
-| Alert          | Trigger                      | Severity |
-|----------------|------------------------------|----------|
-| BIG_DROP       | Daily return < -3%           | WARNING / CRITICAL (< -5%) |
-| BIG_GAIN       | Daily return > +3%           | INFO     |
-| SIGNAL_BUY     | SMA-9 crosses above SMA-21   | INFO     |
-| SIGNAL_SELL    | SMA-9 crosses below SMA-21   | INFO     |
-| HIGH_VOLUME    | Volume > 1.5x 30-day average | WARNING  |
